@@ -1,1 +1,1 @@
-web: gunicorn HW1_Main:app
+web: gunicorn app:app
