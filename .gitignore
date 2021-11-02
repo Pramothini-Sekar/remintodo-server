@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 homework-todo-40dae-firebase-adminsdk-gb6nv-6ba33da2ab.json
 twilio.env
+google-credentials.json

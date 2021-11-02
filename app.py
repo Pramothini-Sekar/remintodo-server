@@ -23,7 +23,7 @@ client = Client(account_sid, auth_token)
 
 # Initialize Firestore DB
 if not firebase_admin._apps:
-    cred = credentials.Certificate('homework-todo-40dae-firebase-adminsdk-gb6nv-6ba33da2ab.json')
+    cred = credentials.Certificate('google-credentials.json')
     default_app = initialize_app(cred)
 db = firestore.client()
 todo_ref = db.collection('todos')
