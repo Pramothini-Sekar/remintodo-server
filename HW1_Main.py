@@ -24,10 +24,10 @@ app = Flask(__name__)
 CORS(app)
 
 
-api_key = 'SKac8bdf33da6c11542a64dff363b4da7d'
-api_secret = 'SvgaO62s3mEDtN2JuoCCoJuuvsACCK6T'
-account_sid = 'ACf98ed4e75dc6e53ea7806fc8ef83002a'
-auth_token = 'ed80cd0f3f83e164f6e4788b2152ea9e'
+api_key = os.environ['API_KEY']
+api_secret = os.environ['API_SECRET']
+account_sid = os.environ['TWILIO_ACCOUNT_SID']
+auth_token = os.environ['TWILIO_AUTH_TOKEN']
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
 
