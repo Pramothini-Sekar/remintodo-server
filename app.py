@@ -190,6 +190,7 @@ def sms_reply():
     resp = MessagingResponse()
 
     tasks = get_tasks_for_today()
+    print('Tasks ', tasks)
     # Add a message
     resp.message(tasks)
 
