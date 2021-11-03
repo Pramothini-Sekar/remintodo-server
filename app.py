@@ -25,8 +25,9 @@ auth_token = os.environ['TWILIO_AUTH_TOKEN']
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
 
-cloud_amqp_url = 'amqps://lhquxzkf:Av3UQgpD4--Y_mpfV-Xib0-fEC8nPEh4@clam.rmq.cloudamqp.com/lhquxzkf'
-app = Celery('tasks', broker=cloud_amqp_url)
+cloud_amqp_url = os.environ['CELERY_BROKER_URL']
+app.config['CELERY_BROKER_URL'] = cloud_amqp_url
+celery = Celery(app.name, broker=cloud_amqp_url)
 
 # Initialize Firestore DB
 if not firebase_admin._apps:
@@ -186,7 +187,7 @@ def get_tasks_for_today():
             return jsonify(all_todos)
     except Exception as e:
         return f"An Error Occured: {e}"
-    
+  
 @app.route("/sms", methods=['GET', 'POST'])
 def sms_reply():
     """Respond to incoming calls with a simple text message."""
@@ -198,6 +199,19 @@ def sms_reply():
     resp.message(tasks)
 
     return str(resp)
+
+# This will one ONCE in the future.
+@celery.task()
+def hello():
+    message = client.messages.create(
+         body='This is the ship that made the Kessel Run in fourteen parsecs?',
+         from_=from_number,
+         to=to_number
+     )
+    return 'hello world'
+
+in_a_minute = datetime.utcnow() + timedelta(minutes=1)
+hello.apply_async(eta=in_a_minute)
 
 if __name__ == '__main__':
     # Threaded option to enable multiple instances for multiple user access support
