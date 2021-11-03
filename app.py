@@ -7,7 +7,6 @@ from flask import Flask, request, jsonify, redirect, session, render_template
 from firebase_admin import credentials, firestore, initialize_app
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
-from celery import Celery
 from time import sleep
 from datetime import datetime, timedelta
 
@@ -24,10 +23,6 @@ account_sid = os.environ['TWILIO_ACCOUNT_SID']
 auth_token = os.environ['TWILIO_AUTH_TOKEN']
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
-
-cloud_amqp_url = os.environ['CELERY_BROKER_URL']
-app.config['CELERY_BROKER_URL'] = cloud_amqp_url
-celery = Celery(app.name, broker=cloud_amqp_url)
 
 # Initialize Firestore DB
 if not firebase_admin._apps:
@@ -199,19 +194,6 @@ def sms_reply():
     resp.message(tasks)
 
     return str(resp)
-
-# This will one ONCE in the future.
-@celery.task()
-def hello():
-    message = client.messages.create(
-         body='This is the ship that made the Kessel Run in fourteen parsecs?',
-         from_=from_number,
-         to=to_number
-     )
-    return 'hello world'
-
-in_a_minute = datetime.utcnow() + timedelta(minutes=1)
-hello.apply_async(eta=in_a_minute)
 
 if __name__ == '__main__':
     # Threaded option to enable multiple instances for multiple user access support
