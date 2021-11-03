@@ -7,12 +7,16 @@ from flask import Flask, request, jsonify, redirect, session, render_template
 from firebase_admin import credentials, firestore, initialize_app
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
+from celery import Celery
+from time import sleep
+from datetime import datetime, timedelta
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 
-
+from_number = '+15739733743' # put your twilio number here'
+to_number = '+16467326671' # put your own phone number here
 
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
@@ -20,6 +24,9 @@ account_sid = os.environ['TWILIO_ACCOUNT_SID']
 auth_token = os.environ['TWILIO_AUTH_TOKEN']
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
+
+cloud_amqp_url = 'amqps://lhquxzkf:Av3UQgpD4--Y_mpfV-Xib0-fEC8nPEh4@clam.rmq.cloudamqp.com/lhquxzkf'
+app = Celery('tasks', broker=cloud_amqp_url)
 
 # Initialize Firestore DB
 if not firebase_admin._apps:
@@ -154,22 +161,41 @@ def call_motivator():
         
         call = client.calls.create(
                                 twiml='<Response><Say>Call Pramo to remind her of tasks!</Say></Response>',
-                                to='+16467326671',
-                                from_='+15739733743'
+                                to=to_number,
+                                from_=from_number
                             )
         
         return jsonify({'sid' : call.sid}), 200
     except Exception as e:
         return f"An Error Occured: {e}"
 
+def get_tasks_for_today():
+    """
+        read() : Fetches documents from Firestore collection as JSON.
+        todo : Return document that matches query ID.
+        all_todos : Return all documents.
+    """
+    try:
+        # Check if ID was passed to URL query
+        todo_id = request.args.get('id')
+        if todo_id:
+            todo = todo_ref.document(todo_id).get()
+            return jsonify(todo.to_dict())
+        else:
+            all_todos = [doc.to_dict() for doc in todo_ref.stream()]
+            return jsonify(all_todos)
+    except Exception as e:
+        return f"An Error Occured: {e}"
+    
 @app.route("/sms", methods=['GET', 'POST'])
 def sms_reply():
     """Respond to incoming calls with a simple text message."""
     # Start our TwiML response
     resp = MessagingResponse()
 
+    tasks = get_tasks_for_today()
     # Add a message
-    resp.message("The Robots are coming! Head for the hills!")
+    resp.message(tasks)
 
     return str(resp)
 
