@@ -9,7 +9,7 @@ from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from time import sleep
 from datetime import date, datetime, timedelta
-
+import datetime
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
@@ -22,6 +22,7 @@ auth_token = os.environ['TWILIO_AUTH_TOKEN']
 
 api_key = os.environ['API_KEY']
 api_secret = os.environ['API_SECRET']
+
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
 
@@ -172,25 +173,22 @@ def get_tasks_for_today():
         todo : Return document that matches query ID.
         all_todos : Return all documents.
     """
+    our_response = "Hey!\n You NEED to complete the below tasks if you want to have a proper night's sleep. \n"
     try:
-        # Check if ID was passed to URL query
-        todo_id = request.args.get('id')
-        if todo_id:
-            todo = todo_ref.document(todo_id).get()
-            return jsonify(todo.to_dict())
-        else:
-            all_todos = [doc.to_dict() for doc in todo_ref.stream()]
-            incomplete_task_titles = []
-            for task in all_todos:
-                if task['status'] != 'Completed':
-                    deadline_parsed = task['deadline'][0 : 10]
-                    deadline_split = deadline_parsed.split('-')
-                    task_year = deadline_split[0]
-                    task_month = deadline_split[1]
-                    task_day = deadline_split[2]
-                    if(task_month == date.today().month and task_day == date.today().day and task_year == date.today().year):
-                        incomplete_task_titles.append(task['title'])
-            return incomplete_task_titles
+        all_todos = [doc.to_dict() for doc in todo_ref.stream()]
+        incomplete_task_titles = []
+        for task in all_todos:
+            if task['status'] != 'Completed':
+                deadline_parsed = datetime.datetime.strptime(task['deadline'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                task_year = deadline_parsed.year
+                task_month = deadline_parsed.month
+                task_day = deadline_parsed.day
+                now = datetime.datetime.now()
+                if(task_month == now.month and task_day == now.day and task_year == now.year):
+                    incomplete_task_titles.append(task['title'])
+        for task_index in range(len(incomplete_task_titles)):
+            our_response += str(task_index + 1) + '. ' + incomplete_task_titles[task_index] + '\n'
+        return our_response
     except Exception as e:
         return f"An Error Occured: {e}"
   
@@ -198,12 +196,13 @@ def get_tasks_for_today():
 def sms_reply():
     """Respond to incoming calls with a simple text message."""
     # Start our TwiML response
+    tasks = get_tasks_for_today()
+
     resp = MessagingResponse()
 
-    tasks = get_tasks_for_today()
     print('Tasks ', tasks)
     # Add a message
-    resp.message(str(tasks))
+    resp.message(tasks)
 
     return str(resp)
 
