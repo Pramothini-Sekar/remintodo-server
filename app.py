@@ -8,7 +8,7 @@ from firebase_admin import credentials, firestore, initialize_app
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from time import sleep
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -17,10 +17,11 @@ CORS(app)
 from_number = '+15739733743' # put your twilio number here'
 to_number = '+16467326671' # put your own phone number here
 
-api_key = os.environ['API_KEY']
-api_secret = os.environ['API_SECRET']
 account_sid = os.environ['TWILIO_ACCOUNT_SID']
 auth_token = os.environ['TWILIO_AUTH_TOKEN']
+
+api_key = os.environ['API_KEY']
+api_secret = os.environ['API_SECRET']
 app.secret_key = api_secret
 client = Client(account_sid, auth_token)
 
@@ -179,7 +180,17 @@ def get_tasks_for_today():
             return jsonify(todo.to_dict())
         else:
             all_todos = [doc.to_dict() for doc in todo_ref.stream()]
-            return all_todos
+            incomplete_task_titles = []
+            for task in all_todos:
+                if task['status'] != 'Completed':
+                    deadline_parsed = task['deadline'][0 : 10]
+                    deadline_split = deadline_parsed.split('-')
+                    task_year = deadline_split[0]
+                    task_month = deadline_split[1]
+                    task_day = deadline_split[2]
+                    if(task_month == date.today().month and task_day == date.today().day and task_year == date.today().year):
+                        incomplete_task_titles.append(task['title'])
+            return incomplete_task_titles
     except Exception as e:
         return f"An Error Occured: {e}"
   
@@ -192,7 +203,7 @@ def sms_reply():
     tasks = get_tasks_for_today()
     print('Tasks ', tasks)
     # Add a message
-    resp.message(tasks)
+    resp.message(str(tasks))
 
     return str(resp)
 
