@@ -179,7 +179,7 @@ def get_tasks_for_today():
             return jsonify(todo.to_dict())
         else:
             all_todos = [doc.to_dict() for doc in todo_ref.stream()]
-            return jsonify(all_todos)
+            return all_todos
     except Exception as e:
         return f"An Error Occured: {e}"
   
