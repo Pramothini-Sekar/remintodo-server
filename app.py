@@ -40,23 +40,26 @@ def index():
     return "<h1>Welcome to our Remintodo !!</h1>"
 
 #Adding user phone number to Twilio Verified Users
-def verifyTwilioPhoneNum(phoneNum):
-    phoneNumberWithCode = '+1' + phoneNum
-    validation_request = client.validation_requests \
-                           .create(
-                                friendly_name='My Home Phone Number',
-                                phone_number=phoneNumberWithCode
-                            )
+def verifyTwilioPhoneNum(username, phoneNum):
+    if '+1' not in phoneNum:
+        phoneNum = '+1' + phoneNum
+    validation_request = client.validation_requests.create(
+        friendly_name=username,
+        phone_number=phoneNum)
+    return validation_request.validation_code
                           
 @app.route('/add-user', methods=['POST'])
 def add_user():
     document_id = request.json['number']
+    username = request.json['name']
 
     try:
         user_ref.document(document_id).set(request.json)
-        all_users = [doc.to_dict() for doc in user_ref.stream()]
-        verifyTwilioPhoneNum(document_id)
-        return jsonify(all_users), 200
+        user = user_ref.document(document_id).get()
+        validationCode = verifyTwilioPhoneNum(username, document_id)
+        user = user.to_dict()
+        user['validationCode'] = validationCode
+        return jsonify(user), 200
     except Exception as e:
         return f"An Error Occured: {e}"
     
@@ -220,7 +223,7 @@ def call_motivator():
     except Exception as e:
         return f"An Error Occured: {e}"
 
-def get_tasks_for_today():
+def get_tasks_for_today(number):
     """
         read() : Fetches documents from Firestore collection as JSON.
         todo : Return document that matches query ID.
@@ -228,6 +231,7 @@ def get_tasks_for_today():
     """
     our_response = "Hey!\n You NEED to complete the below tasks if you want to have a proper night's sleep. \n"
     try:
+        todo_ref = user_ref.document(number).collection("todos")
         all_todos = [doc.to_dict() for doc in todo_ref.stream()]
         incomplete_task_titles = []
         for task in all_todos:
@@ -249,7 +253,13 @@ def get_tasks_for_today():
 def sms_reply():
     """Respond to incoming calls with a simple text message."""
     # Start our TwiML response
-    tasks = get_tasks_for_today()
+    users_json = {}
+    users = user_ref.stream()
+    for user in users:
+        users_json[user.id] = user.to_dict()
+        print(user.to_dict())
+        tasks = get_tasks_for_today(users_json[user.id]['number'])
+        print(tasks)
 
     resp = MessagingResponse()
 
